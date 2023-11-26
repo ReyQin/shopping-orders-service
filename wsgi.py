@@ -1,4 +1,4 @@
-from orders import app
+from orders import order_app
 
 if __name__ == "__main__":
-	app.run()
+	order_app.run()
