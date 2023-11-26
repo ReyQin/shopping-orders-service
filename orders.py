@@ -1,31 +1,143 @@
-from flask import Flask
+from flask import Flask, request, jsonify
+from db import DBOrder
+import mysql.connector
 
-app = Flask(__name__)
 
+order_app = Flask(__name__)
+dborder = DBOrder()
 
-@app.route('/')
+# help functions
+def get_order_info(data):
+    orderinfo = {}
+    orderinfo['username'] = data.get('username') if 'username' in data else ''
+    orderinfo['order_num'] = data.get('order_num') if 'order_num' in data else ''
+    orderinfo['order_date'] = data.get('order_date') if 'order_date' in data else ''
+    orderinfo['status'] = data.get('status') if 'status' in data else ''
+    orderinfo['ship_num'] = data.get('ship_num') if 'ship_num' in data else ''
+    return orderinfo
+
+@order_app.route('/')
 def hello_world():
-	return 'Hello World, I am the Orders Service, I will handle orders!'
+    return 'Hello World, I am the Orders Service, I will handle orders info!'
 
 
-@app.route('/api/orders/new')
-def new_order():
-	return 'Hello World, I am the Orders Service, I will handle orders!'
+@order_app.route('/api/order/create/', methods=['POST'])
+def create():
+    data = request.get_json()
+    order_info = get_order_info(data)
+    connection = dborder.connect_to_db()
+    cursor = connection.cursor()
+
+    # Check if the order already exists
+    existing_order_query = "SELECT * FROM dborder WHERE order_num = %s"
+    cursor.execute(existing_order_query, (order_info['order_num'],))
+    existing_order = cursor.fetchone()
+
+    if existing_order:
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Order already exists'})
+
+    # Create a new order
+    create_order_query = "INSERT INTO dborder (username, order_num, order_date, status, ship_num) VALUES (%s, %s, %s, %s, %s)"
+    values = (
+        order_info['username'],
+        order_info['order_num'],
+        order_info['order_date'],
+        order_info['status'],
+        order_info['ship_num'],
+    )
+
+    try:
+        cursor.execute(create_order_query, values)
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Order placed successfully'})
+    except mysql.connector.errors.IntegrityError as e:
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Error placing order.'})
 
 
-@app.route('/api/orders/update')
-def update_order():
-	return 'Hello World, I am the Orders Service, I will handle orders!'
+@order_app.route('/api/order/update/', methods=['PUT'])
+def update():
+    data = request.get_json()
+    order_info = get_order_info(data)
 
+    connection = dborder.connect_to_db()
+    cursor = connection.cursor()
 
-@app.route('/api/orders/get')
-def get_order():
-	return 'Hello World, I am the Orders Service, I will handle orders!'
+    # Check if the order exists
+    existing_order_query = "SELECT * FROM dborder WHERE order_num = %s"
+    cursor.execute(existing_order_query, (order_info['order_num'],))
+    existing_order = cursor.fetchone()
 
+    if not existing_order:
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Order not found'})
 
-@app.route('/api/orders/delete')
-def delete_order():
-	return 'Hello World, I am the Orders Service, I will handle orders!'
+    # Update the order
+    update_order_query = """
+		UPDATE dborder SET
+		order_num = %s, order_data = %s, status = %s, ship_num = %s
+		WHERE order_num = %s
+    """
+    values = (
+        order_info['username'],
+        order_info['order_num'],
+        order_info['order_date'],
+        order_info['status'],
+        order_info['ship_num'],
+    )
+
+    try:
+        cursor.execute(update_order_query, values)
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'User updated successfully'})
+    except mysql.connector.errors.IntegrityError as e:
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Error updating user. IntegrityError.'})
+
+# ... (other imports)
+
+@order_app.route('/api/user/delete/', methods=['DELETE'])
+def delete():
+    data = request.get_json()
+    ordernum = data.get('order_num')
+    order_info = get_order_info(data)
+    connection = dborder.connect_to_db()
+    cursor = connection.cursor()
+
+    # Check if the order exists
+    existing_order_query = "SELECT * FROM dborder WHERE order_num = %s"
+    cursor.execute(existing_order_query, (order_info['order_num'],))
+    existing_order = cursor.fetchone()
+
+    if not existing_order:
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Order not found'})
+
+    # Delete the order
+    delete_order_query = "DELETE FROM dborder WHERE order_num = %s"
+    values = (ordernum,)
+
+    try:
+        cursor.execute(delete_order_query, values)
+        connection.commit()
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Order cancelled successfully'})
+    except mysql.connector.errors.IntegrityError as e:
+        cursor.close()
+        connection.close()
+        return jsonify({'message': 'Error cancelling order. IntegrityError.'})
+
 
 if __name__ == '__main__':
-	app.run()
+    order_app.run(host="127.0.0.1", port=8094, debug=True)
