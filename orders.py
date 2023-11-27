@@ -1,16 +1,16 @@
 from flask import Flask, request, jsonify
-from db import DBOrder
+from db import DBUser
 import mysql.connector
 
 
 order_app = Flask(__name__)
-dborder = DBOrder()
+dborder = DBUser()
 
 # help functions
 def get_order_info(data):
     orderinfo = {}
     orderinfo['username'] = data.get('username') if 'username' in data else ''
-    orderinfo['order_num'] = data.get('order_num') if 'order_num' in data else ''
+    orderinfo['id'] = data.get('id') if 'id' in data else ''
     orderinfo['order_date'] = data.get('order_date') if 'order_date' in data else ''
     orderinfo['status'] = data.get('status') if 'status' in data else ''
     orderinfo['ship_num'] = data.get('ship_num') if 'ship_num' in data else ''
@@ -29,7 +29,7 @@ def create():
     cursor = connection.cursor()
 
     # Check if the order already exists
-    existing_order_query = "SELECT * FROM dborder WHERE order_num = %s"
+    existing_order_query = "SELECT * FROM dborder WHERE id = %s"
     cursor.execute(existing_order_query, (order_info['order_num'],))
     existing_order = cursor.fetchone()
 
@@ -39,11 +39,9 @@ def create():
         return jsonify({'message': 'Order already exists'})
 
     # Create a new order
-    create_order_query = "INSERT INTO dborder (username, order_num, order_date, status, ship_num) VALUES (%s, %s, %s, %s, %s)"
+    create_order_query = "INSERT INTO dborder (username, status, ship_num) VALUES (%s,  %s, %s)"
     values = (
         order_info['username'],
-        order_info['order_num'],
-        order_info['order_date'],
         order_info['status'],
         order_info['ship_num'],
     )
@@ -69,8 +67,8 @@ def update():
     cursor = connection.cursor()
 
     # Check if the order exists
-    existing_order_query = "SELECT * FROM dborder WHERE order_num = %s"
-    cursor.execute(existing_order_query, (order_info['order_num'],))
+    existing_order_query = f"SELECT * FROM dborder WHERE id = {int(order_info['id'])};"
+    cursor.execute(existing_order_query)
     existing_order = cursor.fetchone()
 
     if not existing_order:
@@ -79,17 +77,15 @@ def update():
         return jsonify({'message': 'Order not found'})
 
     # Update the order
-    update_order_query = """
+    update_order_query = f"""
 		UPDATE dborder SET
-		order_num = %s, order_data = %s, status = %s, ship_num = %s
-		WHERE order_num = %s
+		status = %s, ship_num = %s
+		WHERE id = {int(order_info['id'])};
     """
+
     values = (
-        order_info['username'],
-        order_info['order_num'],
-        order_info['order_date'],
-        order_info['status'],
-        order_info['ship_num'],
+		order_info['status'],
+		order_info['ship_num'],
     )
 
     try:
@@ -105,7 +101,7 @@ def update():
 
 # ... (other imports)
 
-@order_app.route('/api/user/delete/', methods=['DELETE'])
+@order_app.route('/api/order/delete/', methods=['DELETE'])
 def delete():
     data = request.get_json()
     ordernum = data.get('order_num')
