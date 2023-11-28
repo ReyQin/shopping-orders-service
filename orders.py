@@ -1,10 +1,10 @@
 from flask import Flask, request, jsonify
-from db import DBUser
+from db import DBOrder
 import mysql.connector
 
 
 order_app = Flask(__name__)
-dborder = DBUser()
+dborder = DBOrder()
 
 # help functions
 def get_order_info(data):
@@ -137,3 +137,4 @@ def delete():
 
 if __name__ == '__main__':
     order_app.run(host="127.0.0.1", port=8094, debug=True)
+
